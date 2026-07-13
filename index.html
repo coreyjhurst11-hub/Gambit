@@ -636,6 +636,12 @@ textarea.inp{resize:vertical;min-height:90px;font-family:var(--mono);font-size:1
 .about-credit .ac-2 b{color:var(--gold)}
 .about-meta{text-align:center;font-size:12px;color:var(--faint);margin-top:14px}
 .home-credit{text-align:center;font-size:12.5px;color:var(--muted);letter-spacing:.04em;margin-top:8px}
+.lookup-box{display:flex;gap:9px;justify-content:center;margin:20px auto 4px;max-width:430px}
+.lookup-box .inp{flex:1;font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase}
+.lookup-box .inp::placeholder{text-transform:none;letter-spacing:0;font-family:var(--body)}
+.tid{color:var(--green-bright);background:var(--green-dim);padding:2px 9px;border-radius:6px;font-size:11.5px;letter-spacing:.06em}
+.pub-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg-2);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:12px}
+.pub-row .tid{font-size:14px;padding:5px 12px}
 .home-credit a{color:var(--green-bright);text-decoration:none}
 .home-credit b{color:var(--gold)}
 .present{position:fixed;inset:0;z-index:200;background:
@@ -815,6 +821,30 @@ const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
 const el = id => document.getElementById(id);
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+
+/* ---------- Profanity filter for player/tournament names (whole-word, name-safe) ---------- */
+const PROFANITY = new Set(['fuck','fucker','fucking','fucked','fuckn','fuk','fuks','motherfucker','mofo',
+ 'shit','shitty','shite','bullshit','shithead','shithead','shitface',
+ 'bitch','bitches','biatch','cunt','cunts','asshole','assholes','asshat','arsehole','ass','arse','asses',
+ 'dick','dickhead','dickface','dicks','cock','cocks','cocksucker','pussy','pussies','bastard','bastards',
+ 'slut','sluts','whore','whores','prick','pricks','twat','twats','wanker','wankers','bollocks','wank',
+ 'piss','pissed','pisser','dumbass','jackass','douche','douchebag','crap','damn','goddamn','bugger',
+ 'nigger','niggers','nigga','niggas','faggot','faggots','fag','fags','retard','retarded','retards','spastic',
+ 'chink','spic','kike','wetback','coon','tranny','dyke','homo']);
+function _stem(w){ return w.replace(/(ing|ers|er|ed|es|s|z|y|a)$/,''); }
+function hasProfanity(str){
+  if(!str) return false;
+  const map={'0':'o','1':'i','3':'e','4':'a','5':'s','7':'t','8':'b','9':'g','@':'a','$':'s','!':'i','|':'i'};
+  const de=String(str).toLowerCase().split('').map(c=>map[c]||c).join('');
+  let tokens=de.split(/[^a-z]+/).filter(Boolean);
+  const singles=tokens.filter(t=>t.length===1).join(''); if(singles.length>=3) tokens.push(singles);
+  const fullsquash=de.replace(/[^a-z]/g,''); if(fullsquash) tokens.push(fullsquash);
+  for(const raw of tokens){
+    const der=raw.replace(/(.)\1+/g,'$1');     // fuuuck -> fuck
+    for(const v of [raw,der,_stem(raw),_stem(der)]){ if(v&&PROFANITY.has(v)) return true; }
+  }
+  return false;
+}
 const clone = o => JSON.parse(JSON.stringify(o));
 function fmtScore(n){ if(n==null) return '0'; const r=Math.round(n*2)/2; return Number.isInteger(r)?String(r):(Math.floor(r)===0?'½':Math.floor(r)+'½'); }
 function fmtTB(n){ if(n==null||isNaN(n)) return '—'; return (Math.round(n*100)/100).toString().replace(/\.0+$/,''); }
@@ -833,10 +863,19 @@ function toast(msg,type='ok',ms=2600){
 const STORE_KEY='gambit.td.v1';
 let DB = { version:1, tournaments:{}, activeId:null };
 let storageOK = true;
+function makePubId(){
+  // human-friendly unique tournament ID, e.g. GMB-7K4QX2 (no 0/O/1/I)
+  const A='23456789ABCDEFGHJKMNPQRSTUVWXYZ'; let s='';
+  const rnd=(typeof crypto!=='undefined'&&crypto.getRandomValues)?crypto.getRandomValues(new Uint32Array(6)):null;
+  for(let i=0;i<6;i++){ const r=rnd?rnd[i]%A.length:Math.floor(Math.random()*A.length); s+=A[r]; }
+  return 'GMB-'+s;
+}
 function loadDB(){
   try{
     const raw=localStorage.getItem(STORE_KEY);
     if(raw){ DB=JSON.parse(raw); DB.tournaments=DB.tournaments||{}; }
+    // migration: every tournament gets a permanent unique public ID
+    Object.values(DB.tournaments||{}).forEach(t=>{ if(!t.pubId) t.pubId=makePubId(); });
   }catch(e){ storageOK=false; console.warn('Storage unavailable',e); }
 }
 let saveTimer=null, lastSaved=0;
@@ -1535,7 +1574,7 @@ function defaultConfig(format, nPlayers){
 
 function createTournament(data){
   const id=uid();
-  const t={ id, name:data.name||'Untitled Tournament', format:data.format||'swiss',
+  const t={ id, pubId:makePubId(), name:data.name||'Untitled Tournament', format:data.format||'swiss',
     createdAt:Date.now(), status:'setup', players:[], rounds:[], config:defaultConfig(data.format,0),
     bracket:null, scheduleGenerated:false };
   Object.assign(t.config, data.config||{});
@@ -1775,6 +1814,67 @@ function slug(s){ return String(s||'tournament').toLowerCase().replace(/[^a-z0-9
 function download(blob,name){ const u=URL.createObjectURL(blob); const a=document.createElement('a');
   a.href=u; a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
 
+/* ================= TOURNAMENT REGISTRY (cloud lookup by ID) =================
+   When hosted on the Gambit server (e.g. Railway), tournaments can be published
+   to a registry and looked up from anywhere by their GMB-XXXXXX ID.
+   Fully optional: offline / static hosting keeps working; publish just explains. */
+function registryBase(){ return (DB.settings&&DB.settings.registryUrl)||''; } // ''=same origin
+function buildViewSnapshot(t){
+  const rated=!!t.config.rated;
+  const R=rated?computeRatings(t):null;
+  let arr=[];
+  try{ arr=getStandings(t).arr; }catch(e){ arr=[]; }
+  const standings=arr.map(s=>{ const o={rank:s.rank,name:s.name,club:s.club||'',score:fmtScore(s.score)};
+    if(rated){ const r=(R&&R[s.id])||{}; o.rating=r.rating!=null?r.rating:null; o.perf=r.perf!=null?r.perf:null; o.estNew=r.estNew!=null?r.estNew:null; }
+    return o; });
+  const nm=id=>{ const p=(t.players||[]).find(x=>x.id===id); return p?p.name:'—'; };
+  const rt=id=>{ const p=(t.players||[]).find(x=>x.id===id); return (rated&&p&&p.rating>0)?p.rating:null; };
+  const rounds=(t.rounds||[]).map(rd=>({ number:rd.number,
+    pairings: rd.pairings.map(pr=> pr.bye
+      ? { bye:true, player:nm(pr.player), byeType:pr.byeType||'full' }
+      : { board:pr.board, white:nm(pr.white), whiteR:rt(pr.white), black:nm(pr.black), blackR:rt(pr.black), result:pr.result||null } )
+  }));
+  return { name:t.name, pubId:t.pubId, format:(FORMATS[t.format]||{}).name||t.format, rated,
+    status:t.status, round:currentRoundNumber(t), totalRounds:(totalRounds(t)||estimateRounds(t)||0),
+    players:activeCount(t), standings, rounds, updatedAt:Date.now() };
+}
+async function publishTournament(t){
+  if(!t.pubId) t.pubId=makePubId();
+  try{
+    const res=await fetch(registryBase()+'/api/publish',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:t.pubId, tournament:t, view:buildViewSnapshot(t)})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j=await res.json();
+    t.publishedAt=Date.now(); saveDB(true); render();
+    const url=location.origin+'/view?id='+t.pubId;
+    toast('Published live! Spectators can watch at '+url,'ok',7000);
+  }catch(e){
+    toast('Publish needs the hosted (online) version of Gambit — this copy can\u2019t reach the registry.','warn',6000);
+  }
+}
+async function lookupTournament(code){
+  code=String(code||'').trim().toUpperCase();
+  if(!code) return;
+  if(!/^GMB-/.test(code)) code='GMB-'+code.replace(/^GMB-?/,'');
+  // 1) local: any tournament already in this browser
+  const local=Object.values(DB.tournaments||{}).find(t=>t.pubId===code);
+  if(local){ DB.activeId=local.id; UI.view='tournament'; UI.tab='standings'; saveDB(true); render(); toast('Found locally — opening '+local.name,'ok'); return; }
+  // 2) registry
+  try{
+    const res=await fetch(registryBase()+'/api/t/'+encodeURIComponent(code));
+    if(res.status===404){ toast('No tournament found for '+code,'warn'); return; }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    const tt=data.tournament||data;
+    tt.id=uid(); tt.pubId=code; DB.tournaments[tt.id]=tt; DB.activeId=tt.id;
+    UI.view='tournament'; UI.tab='standings'; saveDB(true); render();
+    toast('Loaded '+tt.name+' from the registry','ok');
+  }catch(e){
+    toast('Couldn\u2019t reach the registry — ID lookup works on the hosted (online) version.','warn',6000);
+  }
+}
+
 function importTournamentFile(file){
   const fr=new FileReader();
   fr.onload=()=>{ try{
@@ -1793,15 +1893,17 @@ function importTournamentFile(file){
 
 /* bulk add players from pasted text (one per line, optional ", club") */
 function bulkAddPlayers(t, text){
-  const lines=text.split(/\n/).map(l=>l.trim()).filter(Boolean); let n=0;
+  const lines=text.split(/\n/).map(l=>l.trim()).filter(Boolean); let n=0, blocked=0;
   lines.forEach(line=>{
     const parts=line.split(/\s*[,\t]\s*/);
     // "Name", "Name, Club", "Name, Club, Rating", or "Name, Rating"
     let name=parts[0], club='', rating=null;
     if(parts.length===2){ if(/^\d{2,4}$/.test(parts[1])) rating=parts[1]; else club=parts[1]; }
     else if(parts.length>=3){ club=parts[1]; rating=parts[2]; }
+    if(hasProfanity(name)||hasProfanity(club)){ blocked++; return; }
     if(addPlayer(t,name,club,rating)) n++;
   });
+  if(blocked) toast(blocked+' name'+(blocked!==1?'s were':' was')+' skipped for inappropriate language','warn',4500);
   return n;
 }
 
@@ -2220,6 +2322,10 @@ function viewHome(){
        <button class="btn btn-pri" data-act="start-create">${I.plus} New Tournament</button>
        <button class="btn btn-ghost" data-act="import-trigger">${I.upload} Import</button>
      </div>
+     <div class="lookup-box no-print">
+       <input class="inp" id="lookup-id" placeholder="Have a tournament ID?  e.g. GMB-7K4QX2" data-enter="do-lookup" autocomplete="off" spellcheck="false">
+       <button class="btn btn-ghost" data-act="do-lookup">${I.search||I.grid} Find</button>
+     </div>
      <div class="home-credit">Gambit — an <a data-act="open-about" style="cursor:pointer">IroquoisLogic.com</a> product · Sponsored by <b>The Thomaston Chess Club</b></div>
    </div>`;
   let list;
@@ -2240,6 +2346,7 @@ function viewHome(){
            <span>${I.clock} ${statusTag}</span>
            <span>${I.calendar} ${fmtDate(t.createdAt)}</span>
          </div>
+         <div class="meta" style="margin-top:6px"><span class="tid mono">${esc(t.pubId||'')}</span>${t.publishedAt?`<span style="color:var(--green-bright)">${I.check} published</span>`:''}</div>
          <div class="prog"><i style="width:${pct}%"></i></div>
        </div>`;
     }).join('');
@@ -2748,7 +2855,15 @@ function viewPrint(t){
        <div class="note" style="margin-top:14px">${I.info}<div>Each button <b>downloads a ready-made PDF</b> — no print dialog needed. Open it to view, share, or print.</div></div>
      </div>
      <div class="card card-pad">
-       <div class="rail-h" style="padding:0 0 12px">Data files</div>
+       <div class="rail-h" style="padding:0 0 12px">Share &amp; Data</div>
+       <div class="pub-row">
+         <span class="tid mono">${esc(t.pubId||'')}</span>
+         <button class="btn btn-ghost btn-sm" data-act="copy-pubid">${I.download} Copy ID</button>
+         ${t.publishedAt?`<button class="btn btn-ghost btn-sm" data-act="open-view">${I.monitor} Spectator view</button><button class="btn btn-ghost btn-sm" data-act="copy-viewlink">${I.download} Copy watch link</button>`:''}
+         <div style="flex:1"></div>
+         <button class="btn btn-pri btn-sm" data-act="publish-t">${I.upload} ${t.publishedAt?'Update live view':'Go live (publish)'}</button>
+       </div>
+       <div class="hint" style="margin-bottom:12px">Every tournament has a permanent unique ID. <b>Go live</b> to publish it, then share the <b>watch link</b> — parents and players can look up this ID on any device to follow standings and pairings live${t.publishedAt?` — last updated ${fmtDate(t.publishedAt)}. Tap "Update live view" after each round to refresh what spectators see.`:'. (Requires the hosted online version.)'}</div>
        <div style="display:flex;flex-direction:column;gap:10px">
          <button class="btn btn-ghost" data-act="export-json">${I.download} Export this tournament (.json)</button>
          <button class="btn btn-ghost" data-act="export-csv">${I.download} Export standings (.csv)</button>
@@ -3081,6 +3196,11 @@ document.addEventListener('click', e=>{
     case 'rail-close': UI.railOpen=false; render(); break;
     case 'open-help': openHelpModal(); break;
     case 'open-about': openAboutModal(); break;
+    case 'do-lookup': { const i=el('lookup-id'); if(i&&i.value.trim()) lookupTournament(i.value); else toast('Enter a tournament ID like GMB-7K4QX2','info'); break; }
+    case 'publish-t': if(t) publishTournament(t); break;
+    case 'copy-pubid': if(t&&t.pubId){ try{ navigator.clipboard.writeText(t.pubId).then(()=>toast('ID copied: '+t.pubId,'ok')); }catch(err){ toast(t.pubId,'info',6000); } } break;
+    case 'open-view': if(t&&t.pubId){ window.open(location.origin+'/view?id='+t.pubId,'_blank'); } break;
+    case 'copy-viewlink': if(t&&t.pubId){ const url=location.origin+'/view?id='+t.pubId; try{ navigator.clipboard.writeText(url).then(()=>toast('Watch link copied','ok')); }catch(err){ toast(url,'info',7000); } } break;
     case 'modal-bg': if(e.target===node) closeModal(); break;
     case 'close-modal': closeModal(); break;
 
@@ -3184,7 +3304,7 @@ document.addEventListener('click', e=>{
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape' && UI.present){ if(document.fullscreenElement&&document.exitFullscreen) document.exitFullscreen(); UI.present=null; render(); return; }
   if(e.key==='Enter'){ const inp=e.target.closest('[data-enter]'); if(inp){ e.preventDefault();
-    const act=inp.dataset.enter; if(act==='add-player') doAddPlayer(activeT()); } }
+    const act=inp.dataset.enter; if(act==='add-player') doAddPlayer(activeT()); else if(act==='do-lookup') lookupTournament(inp.value); } }
 });
 document.addEventListener('input', e=>{
   if(e.target.id==='player-search'){ UI.playerSearch=e.target.value; UI._refocus='#player-search'; render(); }
@@ -3214,6 +3334,7 @@ function wizNext(){
   if(wiz.step===1){
     wiz.name=(el('wz-name').value||'').trim();
     if(!wiz.name){ toast('Give your tournament a name','warn'); return; }
+    if(hasProfanity(wiz.name)){ toast('Please choose a clean tournament name','warn',4500); return; }
     if(wiz.format==='swiss'){ wiz.config.rounds=clamp(parseInt(el('wz-rounds').value,10)||5,1,20); }
     wiz.config.pointsWin=parseFloat(el('wz-win').value)||1;
     wiz.config.pointsDraw=parseFloat(el('wz-draw').value); if(isNaN(wiz.config.pointsDraw)) wiz.config.pointsDraw=0.5;
@@ -3229,6 +3350,7 @@ function wizCreate(){
 function doAddPlayer(t){
   const nameI=el('add-name'), clubI=el('add-club'); if(!nameI) return;
   const name=nameI.value.trim(); if(!name){ toast('Enter a name','warn'); nameI.focus(); return; }
+  if(hasProfanity(name)||hasProfanity(clubI?clubI.value:'')){ toast('Please keep names clean — that one can\u2019t be added','warn',4500); nameI.focus(); return; }
   const ratingI=el('add-rating');
   addPlayer(t,name,clubI.value, ratingI?ratingI.value:null); saveDB(true);
   render(); const n2=el('add-name'); if(n2) n2.focus();
