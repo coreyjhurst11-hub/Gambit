@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>Live Tournament · Gambit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070809;--panel:#101319;--raised:#171B23;--line:#2A323F;--line-soft:#181D26;
+  --ink:#EEF1F6;--ink-2:#AEB7C5;--muted:#6C7686;--faint:#454E5C;
+  --cy:#19C2DD;--cy-b:#6CEBFF;--cy-dim:#0C2C37;--gold:#E7C277;--gold-b:#F4D89A;--gold-dim:#352A16;--red:#F0686A;
+  --wp:#EAEBEE;--bp:#23262E;
+  --serif:'Cormorant Garamond',Georgia,serif;--body:'Inter',-apple-system,'Segoe UI',sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  --marble:linear-gradient(155deg,#1a1f29,#10131a 38%,#0d1016);--sh:0 1px 2px rgba(0,0,0,.55),0 10px 30px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);background:#06070a;color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;line-height:1.5}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:
+  radial-gradient(1100px 620px at 84% -12%,rgba(34,212,238,.10),transparent 56%),
+  radial-gradient(900px 560px at -10% 114%,rgba(231,194,119,.06),transparent 54%),
+  linear-gradient(170deg,#0a0c11,#070809 55%,#05060a)}
+.wrap{position:relative;z-index:1;max-width:940px;margin:0 auto;padding:18px 16px 60px}
+header{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;padding:6px 2px 18px}
+.hd-main{flex:1;min-width:220px}
+.kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--cy-b);font-weight:600}
+h1{font-family:var(--serif);font-size:clamp(30px,6vw,46px);font-weight:600;line-height:1.02;margin:4px 0 6px}
+.sub{color:var(--muted);font-size:13.5px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.live{display:inline-flex;align-items:center;gap:7px;font-weight:700;color:var(--cy-b);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.live .dot{width:9px;height:9px;border-radius:50%;background:var(--cy-b);box-shadow:0 0 0 0 rgba(34,212,238,.6);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,212,238,.55)}70%{box-shadow:0 0 0 10px rgba(34,212,238,0)}100%{box-shadow:0 0 0 0 rgba(34,212,238,0)}}
+.hd-side{display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.upd{font-family:var(--mono);font-size:11px;color:var(--faint)}
+.btn{font-family:inherit;font-weight:600;font-size:13px;border:1px solid var(--line);background:var(--raised);color:var(--ink);
+  border-radius:10px;padding:9px 14px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{background:#1f2531;border-color:#3a4454}
+.btn-pri{background:var(--cy);color:#04141a;border-color:transparent}
+.search{display:flex;gap:9px;margin:2px 0 16px}
+.search input{flex:1;font-family:inherit;font-size:15px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;padding:12px 15px;outline:none}
+.search input:focus{border-color:var(--cy);box-shadow:0 0 0 3px rgba(34,212,238,.12)}
+.tabs{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px;margin-bottom:16px}
+.tabs button{font-family:inherit;font-weight:600;font-size:14px;color:var(--muted);background:none;border:0;border-radius:9px;padding:9px 18px;cursor:pointer}
+.tabs button.on{background:var(--raised);color:var(--cy-b);box-shadow:var(--sh)}
+.card{background:var(--marble);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 14px;text-align:left;font-size:15px}
+thead th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;background:rgba(255,255,255,.02);border-bottom:1px solid var(--line)}
+tbody tr{border-bottom:1px solid var(--line-soft)}
+tbody tr:last-child{border-bottom:0}
+td.c,th.c{text-align:center}
+td.r,th.r{text-align:right;font-family:var(--mono)}
+.rank{font-family:var(--mono);font-weight:700;color:var(--muted)}
+tr.top1 .rank{color:var(--gold-b)}tr.top1{background:linear-gradient(90deg,rgba(231,194,119,.08),transparent)}
+tr.top2 .rank,tr.top3 .rank{color:var(--ink)}
+.pname{font-weight:600}
+.club{color:var(--muted);font-size:12.5px}
+.score{font-family:var(--mono);font-weight:700;color:var(--cy-b)}
+.rt{font-family:var(--mono);color:var(--gold);font-size:13px}
+tr.hit,.board.hit{outline:2px solid var(--cy);outline-offset:-2px;background:rgba(34,212,238,.07)!important}
+.rbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.rbar button{font-family:inherit;font-weight:600;font-size:13px;color:var(--muted);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 13px;cursor:pointer}
+.rbar button.on{color:var(--cy-b);border-color:var(--cy);background:var(--cy-dim)}
+.boards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.board{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.board-top{display:flex;justify-content:space-between;align-items:center;padding:8px 13px;background:rgba(255,255,255,.02);border-bottom:1px solid var(--line-soft);font-family:var(--mono);font-weight:700;font-size:13px;color:var(--ink-2)}
+.board-res{font-family:var(--mono);font-weight:700}
+.seat{display:flex;align-items:center;gap:10px;padding:11px 13px}
+.seat+.seat{border-top:1px solid var(--line-soft)}
+.disc{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);flex-shrink:0}
+.disc.w{background:radial-gradient(circle at 35% 30%,#fff,var(--wp));border-color:#cfc9ba}
+.disc.b{background:radial-gradient(circle at 35% 30%,#3a3f4a,var(--bp));border-color:#15171c}
+.seat .n{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.seat .rr{font-family:var(--mono);font-size:12px;color:var(--gold)}
+.seat.win{background:linear-gradient(90deg,rgba(231,194,119,.14),transparent)}.seat.win .n{color:var(--gold-b)}
+.seat.draw{background:linear-gradient(90deg,rgba(34,212,238,.12),transparent)}.seat.draw .n{color:var(--cy-b)}
+.seat.lose{opacity:.55}
+.bye{padding:12px 14px;color:var(--gold);font-weight:600}
+.status{font-size:11px;color:var(--muted);padding:7px 13px;border-top:1px solid var(--line-soft)}
+.center-box{max-width:440px;margin:8vh auto;text-align:center}
+.center-box h1{margin-bottom:8px}
+.center-box p{color:var(--muted);margin-bottom:20px}
+.idform{display:flex;gap:9px}
+.idform input{flex:1;font-family:var(--mono);text-transform:uppercase;letter-spacing:.06em;font-size:16px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:11px;padding:13px 15px;outline:none;text-align:center}
+.idform input::placeholder{text-transform:none;letter-spacing:0;font-family:var(--body)}
+.err{color:var(--red);margin-top:12px;font-size:13.5px}
+.empty{text-align:center;color:var(--muted);padding:40px 20px}
+footer{text-align:center;color:var(--faint);font-size:11.5px;margin-top:30px;padding-top:16px;border-top:1px solid var(--line-soft)}
+footer b{color:var(--gold)}
+.mk{width:56px;height:56px;border-radius:15px;display:grid;place-items:center;margin:0 auto 10px;background:linear-gradient(145deg,#222833,#0c0e13);border:1px solid #333c4a}
+.mk svg{width:32px;height:32px;color:var(--cy-b)}
+</style>
+</head>
+<body>
+<div class="wrap" id="root"></div>
+<script>
+var KNIGHT='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 22h12v-2H6v2zm12-3c0-1.5-.4-2.9-1-4 .9-1.1 1.2-2.6.9-4.2-.5-2.6-2.6-5-5.3-6.2L12 2l-1 2-2-.5.6 2.2C7.6 8.3 6 10.5 6 13c0 0 1.5-1.2 2.7-1.4.5-.1.8.4.5.8-1.1 1.4-2.2 3.2-2.2 5.6 0 .35 0 .68.04 1H18z"/></svg>';
+var params=new URLSearchParams(location.search);
+var ID=(params.get('id')||'').toUpperCase().replace(/[^GMB0-9A-Z-]/g,'');
+if(ID && !/^GMB-/.test(ID)) ID='GMB-'+ID.replace(/^GMB-?/,'');
+var state={data:null,updatedAt:0,tab:'standings',roundView:null,query:'',error:'',loading:false};
+var pollTimer=null;
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function ago(ts){ if(!ts) return ''; var s=Math.round((Date.now()-ts)/1000); if(s<60) return 'just now'; var m=Math.round(s/60); if(m<60) return m+' min ago'; return Math.round(m/60)+' hr ago'; }
+function resLabel(r){ return r==='1-0'?'1 \u2013 0':r==='0-1'?'0 \u2013 1':r==='='?'\u00bd \u2013 \u00bd':r==='1F'?'Black FF':r==='0F'?'White FF':r==='XX'?'Double FF':''; }
+
+async function load(){
+  if(!ID){ render(); return; }
+  state.loading=true;
+  try{
+    var res=await fetch('/api/view/'+encodeURIComponent(ID),{cache:'no-store'});
+    if(res.status===404){ state.error='No live tournament found for '+ID+'. Double-check the ID with the organizer.'; state.data=null; }
+    else if(!res.ok){ throw new Error('HTTP '+res.status); }
+    else { var j=await res.json(); state.data=j.view; state.updatedAt=j.updatedAt||Date.now(); state.error='';
+      if(state.roundView==null && state.data && state.data.rounds && state.data.rounds.length) state.roundView=state.data.rounds[state.data.rounds.length-1].number; }
+  }catch(e){ state.error='Could not reach the tournament server. Retrying…'; }
+  state.loading=false; render();
+}
+function startPolling(){ if(pollTimer) clearInterval(pollTimer); if(ID) pollTimer=setInterval(load,25000); }
+
+function matchQ(s){ return state.query && String(s||'').toLowerCase().indexOf(state.query.toLowerCase())>=0; }
+
+function render(){
+  var root=document.getElementById('root');
+  if(!ID){ root.innerHTML=idPrompt(''); wire(); return; }
+  if(!state.data){
+    root.innerHTML=idPrompt(state.error||'Loading…');
+    wire(); return;
+  }
+  var d=state.data, rated=d.rated;
+  var head='<header><div class="hd-main">'
+    +'<div class="kicker">'+esc(d.format)+(rated?' \u00b7 Rated':'')+'</div>'
+    +'<h1>'+esc(d.name)+'</h1>'
+    +'<div class="sub"><span class="live"><span class="dot"></span>Live</span>'
+    +'<span>Round '+d.round+(d.totalRounds?' of '+d.totalRounds:'')+'</span>'
+    +'<span>'+d.players+' players</span></div></div>'
+    +'<div class="hd-side"><button class="btn" onclick="load()">\u21bb Refresh</button>'
+    +'<span class="upd">Updated '+ago(state.updatedAt)+'</span></div></header>';
+
+  var search='<div class="search"><input id="q" placeholder="Find a player by name…" value="'+esc(state.query)+'" autocomplete="off"></div>';
+  var tabs='<div class="tabs">'
+    +'<button class="'+(state.tab==='standings'?'on':'')+'" onclick="setTab(\'standings\')">Standings</button>'
+    +'<button class="'+(state.tab==='pairings'?'on':'')+'" onclick="setTab(\'pairings\')">Pairings &amp; Results</button></div>';
+
+  var body = state.tab==='standings' ? standingsHTML(d,rated) : pairingsHTML(d,rated);
+  var foot='<footer>Gambit \u00b7 Tournament Director \u2014 an IroquoisLogic.com product \u00b7 Sponsored by <b>The Thomaston Chess Club</b><br>Watching '+esc(ID)+' \u00b7 refreshes automatically</footer>';
+  root.innerHTML=head+search+tabs+body+foot;
+  wire();
+}
+function standingsHTML(d,rated){
+  if(!d.standings || !d.standings.length) return '<div class="card"><div class="empty">Standings will appear once results are in.</div></div>';
+  var rows=d.standings.map(function(s){
+    var hit=matchQ(s.name)||matchQ(s.club)?' hit':'';
+    var top=s.rank<=3?' top'+s.rank:'';
+    var extra = rated ? '<td class="r rt">'+(s.rating!=null?s.rating:'\u2014')+'</td><td class="r rt" style="color:var(--cy-b)">'+(s.estNew!=null?s.estNew:'\u2014')+'</td>' : '';
+    return '<tr class="'+top+hit+'"><td class="c rank">'+s.rank+'</td>'
+      +'<td><div class="pname">'+esc(s.name)+'</div>'+(s.club?'<div class="club">'+esc(s.club)+'</div>':'')+'</td>'
+      +'<td class="r score">'+esc(s.score)+'</td>'+extra+'</tr>';
+  }).join('');
+  var rhead = rated ? '<th class="r">Rating</th><th class="r">Est. New</th>' : '';
+  return '<div class="card"><table><thead><tr><th class="c">#</th><th>Player</th><th class="r">Pts</th>'+rhead+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function pairingsHTML(d,rated){
+  if(!d.rounds || !d.rounds.length) return '<div class="card"><div class="empty">Pairings will appear when the first round starts.</div></div>';
+  var rbar='<div class="rbar">'+d.rounds.map(function(rd){
+    return '<button class="'+(state.roundView===rd.number?'on':'')+'" onclick="setRound('+rd.number+')">Round '+rd.number+'</button>';
+  }).join('')+'</div>';
+  var rd=null; for(var i=0;i<d.rounds.length;i++){ if(d.rounds[i].number===state.roundView) rd=d.rounds[i]; }
+  if(!rd) rd=d.rounds[d.rounds.length-1];
+  var cards=rd.pairings.map(function(p){
+    if(p.bye){ var hb=matchQ(p.player)?' hit':''; return '<div class="board'+hb+'"><div class="bye">'+esc(p.player)+' \u2014 bye ('+esc(p.byeType)+' point)</div></div>'; }
+    var wWin=p.result==='1-0'||p.result==='1F', bWin=p.result==='0-1'||p.result==='0F', draw=p.result==='=';
+    function seat(name,rr,side,win,lose){
+      var cls=draw?'draw':win?'win':lose?'lose':'';
+      return '<div class="seat '+cls+'"><span class="disc '+side+'"></span><span class="n">'+esc(name)+'</span>'+(rated&&rr?'<span class="rr">'+rr+'</span>':'')+'</div>';
+    }
+    var decided=!!p.result;
+    var hit=matchQ(p.white)||matchQ(p.black)?' hit':'';
+    return '<div class="board'+hit+'"><div class="board-top"><span>Board '+p.board+'</span>'
+      +'<span class="board-res" style="color:'+(decided?'var(--cy-b)':'var(--muted)')+'">'+(decided?resLabel(p.result):'in progress')+'</span></div>'
+      +seat(p.white,p.whiteR,'w',wWin,decided&&!wWin&&!draw)
+      +seat(p.black,p.blackR,'b',bWin,decided&&!bWin&&!draw)+'</div>';
+  }).join('');
+  return rbar+'<div class="boards">'+cards+'</div>';
+}
+function idPrompt(msg){
+  return '<div class="center-box"><div class="mk">'+KNIGHT+'</div><h1>Watch a live tournament</h1>'
+    +'<p>Enter the tournament ID your organizer shared to follow standings and pairings in real time.</p>'
+    +'<div class="idform"><input id="idin" placeholder="e.g. GMB-7K4QX2" value="'+esc(ID||'')+'" autocomplete="off"><button class="btn btn-pri" onclick="submitId()">Watch</button></div>'
+    +(msg?'<div class="'+(state.error?'err':'empty')+'">'+esc(msg)+'</div>':'')
+    +'<footer style="margin-top:34px">Gambit \u00b7 an IroquoisLogic.com product \u00b7 Sponsored by <b>The Thomaston Chess Club</b></footer></div>';
+}
+function wire(){
+  var q=document.getElementById('q'); if(q){ q.oninput=function(){ state.query=q.value; var p=q.selectionStart; render(); var q2=document.getElementById('q'); if(q2){ q2.focus(); try{q2.setSelectionRange(p,p);}catch(e){} } }; }
+  var idin=document.getElementById('idin'); if(idin){ idin.onkeydown=function(e){ if(e.key==='Enter') submitId(); }; }
+}
+function setTab(t){ state.tab=t; render(); }
+function setRound(n){ state.roundView=n; render(); }
+function submitId(){ var idin=document.getElementById('idin'); if(!idin) return; var v=idin.value.trim().toUpperCase(); if(!v) return;
+  if(!/^GMB-/.test(v)) v='GMB-'+v.replace(/^GMB-?/,''); ID=v; history.replaceState(null,'','/view?id='+ID); state.roundView=null; render(); load(); startPolling(); }
+load(); startPolling();
+</script>
+</body>
+</html>
